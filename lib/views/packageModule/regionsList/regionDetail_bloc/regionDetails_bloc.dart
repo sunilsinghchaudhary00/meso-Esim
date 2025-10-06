@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:esimtel/views/packageModule/regionsList/model/regionDetailsModel.dart';

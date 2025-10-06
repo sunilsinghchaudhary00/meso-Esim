@@ -19,7 +19,8 @@ class ApiLoading<T> extends ApiState<T> {
 }
 
 class ApiSuccess<T> extends ApiState<T> {
-   final T data;
+   @override
+  final T data;
   const ApiSuccess(this.data);
   
   @override
@@ -27,6 +28,7 @@ class ApiSuccess<T> extends ApiState<T> {
 }
 
 class ApiFailure<T> extends ApiState<T> {
+  @override
   final String error;
   const ApiFailure(this.error);
   

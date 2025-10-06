@@ -40,6 +40,7 @@ class Data {
     String? email;
     dynamic iccid;
     dynamic payment_session_id;
+    dynamic payment_gateway;
 
     Data({
         this.esimOrderId,
@@ -53,6 +54,7 @@ class Data {
         this.phone,
         this.email,
         this.iccid,this.payment_session_id
+        , this.payment_gateway
     });
 
     factory Data.fromJson(Map<String, dynamic> json) => Data(
@@ -68,6 +70,7 @@ class Data {
         email: json["email"],
         iccid: json["iccid"],
         payment_session_id: json["payment_session_id"],
+        payment_gateway : json["payment_gateway"]
     );
 
     Map<String, dynamic> toJson() => {
@@ -82,6 +85,7 @@ class Data {
         "phone": phone,
         "email": email,
         "iccid": iccid,
-        "payment_session_id": payment_session_id
+        "payment_session_id": payment_session_id,
+        "payment_gateway" : payment_gateway
     };
 }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:developer';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:esimtel/core/bloc/api_event.dart';
 import 'package:esimtel/utills/connectivity/connectivity_bloc.dart';

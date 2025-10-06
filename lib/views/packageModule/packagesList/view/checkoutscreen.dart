@@ -177,11 +177,27 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                   verified_esim_order_id = state.data?.data?.esimOrderId;
                   payment_order_id = state.data?.data?.gatewayOrderId;
                 });
-                log('called fib or billing');
-                //! check billing or fib then call for verificaitoin
-                // _gpaymentUtils.buyConsumableProduct(
-                //   payment_order_id.toString(),
-                // );
+                log(
+                  'called fib or billing ${state.data?.data!.payment_gateway}',
+                );
+                if (state.data?.data!.payment_gateway == 'GpayInAppPurchase') {
+                  //! check billing or fib then call for verificaitoin
+                  _gpaymentUtils.buyConsumableProduct(
+                    payment_order_id.toString(),
+                  );
+                } else {
+                  // Get.back();
+                  Get.to(
+                    () => FIBPaymentScreen(
+                      esimOrderId: esimOrderId,
+                      isTopUp: widget.isTopUp,
+                      iccid: widget.iccid,
+                      amount: state.data!.data!.amount.toString(),
+                      paymentResponse: {},
+                      packageId: widget.packageListInfo.id.toString(),
+                    ),
+                  );
+                }
               }
             },
 
@@ -592,25 +608,7 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                         color: Colors.green,
                         onTap: () {
                           //. fib send payment
-
-                          if (widget.isTopUp == true) {
-                            context.read<OrderNowBloc>().add(
-                              BuyNowEvent(
-                                isTopu: true,
-                                topUpiccid: widget.iccid,
-                                packageid: widget.packageListInfo.id.toString(),
-                                orderGatewayType: 'GpayInAppPurchase',
-                              ),
-                            );
-                          } else {
-                            context.read<OrderNowBloc>().add(
-                              BuyNowEvent(
-                                packageid: widget.packageListInfo.id.toString(),
-                                orderPrice: formattedRupees.toString(),
-                                orderGatewayType: 'GpayInAppPurchase',
-                              ),
-                            );
-                          }
+                          _onCreateOrderclicked(context,'GpayInAppPurchase');
                         },
                       ),
 
@@ -653,36 +651,8 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                         subtitle: "QR Code & Bank Transfer",
                         color: Colors.blue,
                         onTap: () {
-                          Get.back();
-                          Get.to(() => FIBPaymentScreen(
-                            esimOrderId:  widget.packageListInfo.id.toString(),
-                            isTopUp: widget.isTopUp,
-                            iccid: widget.iccid,
-                            amount: formattedRupees.toString(),
-                            paymentResponse: {},
-                            packageId: widget.packageListInfo.id.toString(),
-                          ));
-                          log('tick tick');
-                          // if (widget.isTopUp == true) {
-                          //   context.read<OrderNowBloc>().add(
-                          //     BuyNowEvent(
-                          //       isTopu: true,
-                          //       topUpiccid: widget.iccid,
-                          //       packageid: widget.packageListInfo.id.toString(),
-                          //       orderGatewayType: 'FIB'
-
-                          //     ),
-                          //   );
-                          // } else {
-                          //   context.read<OrderNowBloc>().add(
-                          //     BuyNowEvent(
-                          //       packageid: widget.packageListInfo.id.toString(),
-                          //       orderPrice: formattedRupees.toString(),
-                          //       orderGatewayType: 'FIB'
-
-                          //     ),
-                          //   );
-                          // }
+                          _onCreateOrderclicked(context, 'FIB');
+                          log('tick tick fib');
                         },
                       ),
                     ],
@@ -720,6 +690,27 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
         );
       },
     );
+  }
+
+  void _onCreateOrderclicked(BuildContext context , String paymentType) {
+    if (widget.isTopUp == true) {
+      context.read<OrderNowBloc>().add(
+        BuyNowEvent(
+          isTopu: true,
+          topUpiccid: widget.iccid,
+          packageid: widget.packageListInfo.id.toString(),
+          orderGatewayType: paymentType,
+        ),
+      );
+    } else {
+      context.read<OrderNowBloc>().add(
+        BuyNowEvent(
+          packageid: widget.packageListInfo.id.toString(),
+          orderPrice: formattedRupees.toString(),
+          orderGatewayType: paymentType,
+        ),
+      );
+    }
   }
 
   // Payment Option Widget
