@@ -178,10 +178,9 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                   payment_order_id = state.data?.data?.gatewayOrderId;
                 });
                 log(
-                  'called fib or billing ${state.data?.data!.payment_gateway}',
+                  'called fib or billing ${state.data?.data!.paymentGateway}',
                 );
-                if (state.data?.data!.payment_gateway == 'GpayInAppPurchase') {
-                  //! check billing or fib then call for verificaitoin
+                if (state.data?.data!.paymentGateway == 'GpayInAppPurchase') {
                   _gpaymentUtils.buyConsumableProduct(
                     payment_order_id.toString(),
                   );
@@ -189,12 +188,12 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                   // Get.back();
                   Get.to(
                     () => FIBPaymentScreen(
-                      esimOrderId: esimOrderId,
+                      esimOrderId: esimOrderId.toString(),
                       isTopUp: widget.isTopUp,
-                      iccid: widget.iccid,
+                      iccid: widget.iccid.toString(),
                       amount: state.data!.data!.amount.toString(),
-                      paymentResponse: {},
-                      packageId: widget.packageListInfo.id.toString(),
+                      paymentResponse: state.data?.data!.gatewayResponse,
+                      paymentOrderid: payment_order_id.toString(),
                     ),
                   );
                 }
@@ -432,9 +431,22 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
     _gpaymentUtils = GPaymentUtils(
       onMessage: (message) {
         global.showToastMessage(message: message);
+
         setState(() {
           isloading = false;
         });
+        final Map<String, dynamic> errorData = {
+          'status': 'error',
+          'error': {
+            'code': '400',
+            'message': 'Product Not Found on appstore/playstore',
+            'details': 'User cancelled the transaction',
+          },
+        };
+        final String jsonError = jsonEncode(errorData);
+        context.read<RazorpayErrorBloc>().add(
+          RazorpayEvent(esimOrderId: esimOrderId, code: jsonError),
+        );
       },
       onPurchaseVerified: (purchaseDetails) {
         // Decode into Map
@@ -608,7 +620,7 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                         color: Colors.green,
                         onTap: () {
                           //. fib send payment
-                          _onCreateOrderclicked(context,'GpayInAppPurchase');
+                          _onCreateOrderclicked(context, 'GpayInAppPurchase');
                         },
                       ),
 
@@ -692,7 +704,7 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
     );
   }
 
-  void _onCreateOrderclicked(BuildContext context , String paymentType) {
+  void _onCreateOrderclicked(BuildContext context, String paymentType) {
     if (widget.isTopUp == true) {
       context.read<OrderNowBloc>().add(
         BuyNowEvent(

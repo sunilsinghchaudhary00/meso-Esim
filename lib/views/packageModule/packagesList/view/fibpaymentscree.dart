@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer';
+import 'package:esimtel/views/packageModule/packagesList/model/ordernowModel.dart';
 import 'package:flutter/material.dart';
+import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../utills/global.dart' as global;
 import '../../../../utills/paymentUtils/fibpaymentservice.dart';
 
 class FIBPaymentScreen extends StatefulWidget {
-  final Map<String, dynamic> paymentResponse;
+  final GatewayResponse? paymentResponse;
   final String esimOrderId;
-  final String packageId;
+  final String paymentOrderid;
   final String amount;
   final bool isTopUp;
   final String? iccid;
@@ -17,7 +20,7 @@ class FIBPaymentScreen extends StatefulWidget {
     Key? key,
     required this.paymentResponse,
     required this.esimOrderId,
-    required this.packageId,
+    required this.paymentOrderid,
     required this.amount,
     this.isTopUp = false,
     this.iccid,
@@ -30,20 +33,14 @@ class FIBPaymentScreen extends StatefulWidget {
 class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
   bool _isProcessing = false;
   bool _paymentVerified = false;
-  Timer? _statusPollingTimer;
   final fibPaymentService = FIBPaymentService();
 
   @override
   void initState() {
     super.initState();
-    _startStatusPolling();
   }
 
-  void _startStatusPolling() {
-    _statusPollingTimer = Timer.periodic(Duration(seconds: 5), (timer) {
-      _checkPaymentStatus(showLoading: false);
-    });
-  }
+
 
   Future<void> _checkPaymentStatus({bool showLoading = true}) async {
     if (showLoading) {
@@ -52,12 +49,13 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
       });
     }
     try {
-      final paymentId = widget.paymentResponse['paymentId'];
+      final paymentId = widget.paymentOrderid;
       log('paymentId is $paymentId');
-      final verificationResult = await fibPaymentService.checkPaymentStatus(paymentId);
+      final verificationResult = await fibPaymentService.checkPaymentStatus(
+        paymentId,
+      );
       log('payment status is $verificationResult');
       if (verificationResult['status'] == 'success') {
-        _statusPollingTimer?.cancel();
         setState(() {
           _paymentVerified = true;
           _isProcessing = false;
@@ -66,7 +64,9 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
         Navigator.of(context).pop();
       } else {
         if (showLoading) {
-          _showErrorDialog('Payment not verified yet. Please try again in a moment.');
+          _showErrorDialog(
+            'Payment not verified yet. Please try again in a moment.',
+          );
         }
         setState(() {
           _isProcessing = false;
@@ -82,7 +82,6 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
 
   @override
   void dispose() {
-    _statusPollingTimer?.cancel();
     super.dispose();
   }
 
@@ -146,15 +145,12 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
   }
 
   Widget _buildQRCodeSection() {
-    final qrCodeData = widget.paymentResponse['qrCode'] as String?;
+    final qrCodeData = widget.paymentResponse?.qrCode;
     return Column(
       children: [
         Text(
           'Scan QR Code',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         if (qrCodeData != null && qrCodeData.isNotEmpty)
@@ -172,58 +168,47 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
                 ),
               ],
             ),
-            child: Image.network(
-              qrCodeData,
-              height: 200,
-              width: 200,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return SizedBox(
-                  height: 200,
-                  width: 200,
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return SizedBox(
-                  height: 200,
-                  width: 200,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error, color: Colors.red, size: 40),
-                      const SizedBox(height: 8),
-                      Text('Failed to load QR code'),
-                    ],
-                  ),
-                );
-              },
-            ),
+            child: _buildBase64Image(qrCodeData),
           )
         else
           SizedBox(
             height: 200,
             width: 200,
-            child: Center(
-              child: Text('QR Code not available'),
-            ),
+            child: Center(child: Text('QR Code not available')),
           ),
       ],
     );
   }
 
+  Widget _buildBase64Image(String base64String) {
+    try {
+      // remove prefix if present
+      final cleaned = base64String.split(',').last;
+      final bytes = base64Decode(cleaned);
+      return Image.memory(bytes, height: 200, width: 200, fit: BoxFit.contain);
+    } catch (e) {
+      return SizedBox(
+        height: 200,
+        width: 200,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error, color: Colors.red, size: 40),
+            const SizedBox(height: 8),
+            Text('Invalid QR code data'),
+          ],
+        ),
+      );
+    }
+  }
+
   Widget _buildPaymentCode() {
-    final paymentCode = widget.paymentResponse['readableCode'] as String?;
+    final paymentCode = widget.paymentResponse?.readableCode;
     return Column(
       children: [
         Text(
           'Payment Code',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         Container(
@@ -241,7 +226,7 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
               Text(
                 paymentCode ?? 'N/A',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 18.sp,
                   fontWeight: FontWeight.w700,
                   color: Colors.green[800],
                   letterSpacing: 2,
@@ -264,31 +249,28 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
       children: [
         Text(
           'Open FIB App',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 16),
         Column(
           children: [
             _buildAppLinkButton(
               'Open Personal Banking',
-              widget.paymentResponse['personalAppLink'] ?? '',
+              widget.paymentResponse?.personalAppLink ?? '',
               Icons.person,
               Colors.blue,
             ),
             const SizedBox(height: 12),
             _buildAppLinkButton(
               'Open Business Banking',
-              widget.paymentResponse['businessAppLink'] ?? '',
+              widget.paymentResponse?.businessAppLink ?? '',
               Icons.business,
               Colors.green,
             ),
             const SizedBox(height: 12),
             _buildAppLinkButton(
               'Open Corporate Banking',
-              widget.paymentResponse['corporateAppLink'] ?? '',
+              widget.paymentResponse?.corporateAppLink ?? '',
               Icons.corporate_fare,
               Colors.purple,
             ),
@@ -298,7 +280,12 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
     );
   }
 
-  Widget _buildAppLinkButton(String text, String url, IconData icon, Color color) {
+  Widget _buildAppLinkButton(
+    String text,
+    String url,
+    IconData icon,
+    Color color,
+  ) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -306,7 +293,9 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
           if (url.isNotEmpty && await canLaunchUrl(Uri.parse(url))) {
             await launchUrl(Uri.parse(url));
           } else {
-            _showErrorDialog("Cannot open FIB app. Please install the FIB app from Play Store.");
+            _showErrorDialog(
+              "Cannot open FIB app. Please install the FIB app from Play Store.",
+            );
           }
         },
         borderRadius: BorderRadius.circular(10),
@@ -347,10 +336,7 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
       children: [
         Text(
           'After completing payment in FIB app:',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
         SizedBox(
