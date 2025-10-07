@@ -4,6 +4,7 @@ import 'package:esimtel/utills/TimeZoneHelper.dart';
 import 'package:esimtel/utills/UserService.dart';
 import 'package:esimtel/utills/binding/networkBinding.dart';
 import 'package:esimtel/utills/connectivity/connectivity_bloc.dart';
+import 'package:esimtel/utills/global.dart' as global;
 import 'package:esimtel/utills/notificationUtils.dart';
 import 'package:esimtel/utills/paymentUtils/fibpaymentservice.dart';
 import 'package:esimtel/views/authModule/auth_controller/LoginController.dart';
@@ -57,7 +58,7 @@ void main() async {
   );
   Get.put(UserService());
 
- //INIT FIB PAYMENT SYSTEM
+  //INIT FIB PAYMENT SYSTEM
 
   fibPaymentService.init(
     clientId: "xpi-stage-v1",
@@ -126,6 +127,9 @@ class _MyAppState extends State<MyApp> {
       log('Notification data: ${message.data['type']}');
       if (message.data['type'] == '3') {
         Get.find<BottomNavController>().navigateToTab(2);
+      } else if (message.data['type'] == '11') { // FIB STATUS CHECK AND VERIFIED
+        Get.find<BottomNavController>().navigateToTab(2);
+        global.showToastMessage(message: 'Payment Verified successfully!');
       }
     });
   }
