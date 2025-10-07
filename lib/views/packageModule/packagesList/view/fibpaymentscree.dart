@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:esimtel/views/packageModule/packagesList/model/ordernowModel.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../utills/global.dart' as global;
@@ -202,50 +203,152 @@ class _FIBPaymentScreenState extends State<FIBPaymentScreen> {
     }
   }
 
-  Widget _buildPaymentCode() {
-    final paymentCode = widget.paymentResponse?.readableCode;
-    return Column(
-      children: [
-        Text(
-          'Payment Code',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green[50],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green[100]!),
+ Widget _buildPaymentCode() {
+  final paymentCode = widget.paymentResponse?.readableCode;
+  
+  return Column(
+  
+    children: [
+      // Header with icon
+      Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Icon(Icons.payment, color: Colors.blue[700], size: 20),
+          const SizedBox(width: 8),
+          Text(
+            'Payment Code',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey[800],
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.confirmation_number, color: Colors.green[700]),
-              const SizedBox(width: 8),
-              Text(
-                paymentCode ?? 'N/A',
-                style: TextStyle(
-                  fontSize: 18.sp,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.green[800],
-                  letterSpacing: 2,
-                ),
-              ),
+        ],
+      ),
+      const SizedBox(height: 16),
+      
+      // Main code container
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue[50]!,
+              Colors.green[50]!,
             ],
           ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.blue[100]!, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Use this code in FIB app if QR code fails',
-          style: TextStyle(color: Colors.grey[600]),
+        child: Column(
+          children: [
+            // Code display row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.confirmation_number_outlined, 
+                     color: Colors.blue[700], size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    paymentCode ?? 'N/A',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20.sp,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.blue[900],
+                      letterSpacing: 3,
+                      fontFamily: 'Monospace',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Copy button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: paymentCode != null ? () {
+                  Clipboard.setData(ClipboardData(text: paymentCode));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Payment code copied to clipboard'),
+                      backgroundColor: Colors.green[600],
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  );
+                } : null,
+                icon: Icon(Icons.content_copy, size: 18),
+                label: Text(
+                  'COPY CODE',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    );
-  }
-
+      ),
+      const SizedBox(height: 12),
+      
+      // Helper text
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.orange[50],
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.orange[100]!),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange[700], size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Use this code in FIB app if QR code fails',
+                style: TextStyle(
+                  color: Colors.orange[800],
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+}
   Widget _buildAppLinks() {
     return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
           'Open FIB App',
