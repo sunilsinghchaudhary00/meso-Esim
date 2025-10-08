@@ -28,8 +28,6 @@ import '../bloc/razorpay_error_bloc/razorpay_error_bloc.dart';
 import '../bloc/razorpay_error_bloc/razorpay_error_event.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
-import 'fibpaymentscree.dart';
-
 class Checkoutscreen extends StatefulWidget {
   dynamic packageListInfo;
   final bool isTopUp;
@@ -186,16 +184,30 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                   );
                 } else {
                   // Get.back();
-                  Get.to(
-                    () => FIBPaymentScreen(
-                      esimOrderId: esimOrderId.toString(),
-                      isTopUp: widget.isTopUp,
-                      iccid: widget.iccid.toString(),
-                      amount: state.data!.data!.amount.toString(),
-                      paymentResponse: state.data?.data!.gatewayResponse,
-                      paymentOrderid: payment_order_id.toString(),
-                    ),
+                  log(
+                    'personal fib link is ${state.data?.data?.gatewayResponse?.personalAppLink}',
                   );
+                  final url =
+                      state.data?.data?.gatewayResponse?.personalAppLink ?? '';
+                  if (url.isNotEmpty) {
+                    await launchUrl(
+                      Uri.parse(url),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  } else {
+                    log("Payment URL is empty");
+                  }
+
+                  // Get.to(
+                  //   () => FIBPaymentScreen(
+                  //     esimOrderId: esimOrderId.toString(),
+                  //     isTopUp: widget.isTopUp,
+                  //     iccid: widget.iccid.toString(),
+                  //     amount: state.data!.data!.amount.toString(),
+                  //     paymentResponse: state.data?.data!.gatewayResponse,
+                  //     paymentOrderid: payment_order_id.toString(),
+                  //   ),
+                  // );
                 }
               }
             },
