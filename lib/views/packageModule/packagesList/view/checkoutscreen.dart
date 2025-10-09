@@ -467,11 +467,8 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
         );
         final _esim_order_id = verified_esim_order_id;
         final _gateway_order_id = payment_order_id;
-
         // Platform-specific additional info
         if (Platform.isIOS) {
-          // Common log for both platforms
-
           final transactionID = decoded["transactionId"];
           final originalTransactionId = decoded["originalTransactionId"];
 
@@ -675,6 +672,7 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                         subtitle: "QR Code & Bank Transfer",
                         color: Colors.blue,
                         onTap: () {
+                          
                           _onCreateOrderclicked(context, 'FIB');
                           log('tick tick fib');
                         },
