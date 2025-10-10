@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:esimtel/utills/TimeZoneHelper.dart';
 import 'package:esimtel/utills/UserService.dart';
 import 'package:esimtel/utills/binding/networkBinding.dart';
+import 'package:esimtel/utills/config.dart';
 import 'package:esimtel/utills/connectivity/connectivity_bloc.dart';
 import 'package:esimtel/utills/global.dart' as global;
 import 'package:esimtel/utills/notificationUtils.dart';
@@ -19,7 +20,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart' hide Transition;
 import 'package:get/get.dart';
-import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:esimtel/theme/bloc/them_block.dart';
@@ -43,7 +43,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   EasyLocalization.ensureInitialized();
-  InAppPurchaseAndroidPlatform.registerPlatform();
   TimeZoneHelper.initialize();
   final fibPaymentService = FIBPaymentService();
 
@@ -61,10 +60,11 @@ void main() async {
   //INIT FIB PAYMENT SYSTEM
 
   fibPaymentService.init(
-    clientId: "xpi-stage-v1",
-    clientSecret: "60ef365-343e-4bcd-9e52-989ff28e7c9c",
-    mode: "stage", // change to prod later
+    clientId: FIB_CLIENT_ID,
+    clientSecret: FIB_CLIENT_SECRET,
+    mode: FIB_MODE, // change to prod later
   );
+
   runApp(
     EasyLocalization(
       supportedLocales: [Locale('en', 'US'), Locale('hi', 'IN')],
@@ -127,7 +127,8 @@ class _MyAppState extends State<MyApp> {
       log('Notification data: ${message.data['type']}');
       if (message.data['type'] == '3') {
         Get.find<BottomNavController>().navigateToTab(2);
-      } else if (message.data['type'] == '11') { // FIB STATUS CHECK AND VERIFIED
+      } else if (message.data['type'] == '11') {
+        // FIB STATUS CHECK AND VERIFIED
         Get.find<BottomNavController>().navigateToTab(2);
         global.showToastMessage(message: 'Payment Verified successfully!');
       }

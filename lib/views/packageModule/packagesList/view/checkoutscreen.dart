@@ -15,8 +15,6 @@ import 'package:get/get.dart';
 import 'package:esimtel/core/bloc/api_state.dart';
 import 'package:esimtel/utills/global.dart' as global;
 import 'package:esimtel/views/navbarModule/bloc/navbar_bloc.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:sizer/sizer.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,7 +24,6 @@ import '../bloc/payment_verify_bloc/bloc/payment_verify_event.dart';
 import '../bloc/payment_verify_bloc/model/paymentverifyModel.dart';
 import '../bloc/razorpay_error_bloc/razorpay_error_bloc.dart';
 import '../bloc/razorpay_error_bloc/razorpay_error_event.dart';
-import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 
 class Checkoutscreen extends StatefulWidget {
   dynamic packageListInfo;
@@ -48,7 +45,6 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
   dynamic esimOrderId;
   bool isloading = false;
   final userService = UserService.to;
-  late GPaymentUtils _gpaymentUtils;
   String? selectedPaymentMethod;
   dynamic verified_esim_order_id = '';
   dynamic payment_order_id = '';
@@ -62,12 +58,6 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
     final rupees = (double.tryParse(paiseString) ?? 0);
     formattedRupees = rupees.toStringAsFixed(0);
     log('🔹 initState $paiseString and ruppe is $rupees ');
-
-    // ✅ Initialize Google Payment Billing
-    _initializeGoogleBilling();
-
-    // ✅ Initialize Alternative Google Payment Billing
-    _setupAlternativeBillingListener();
   }
 
   // Build App Link Button
@@ -142,7 +132,6 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
 
   @override
   void dispose() {
-    _gpaymentUtils.dispose();
     super.dispose();
   }
 
@@ -175,39 +164,18 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                   verified_esim_order_id = state.data?.data?.esimOrderId;
                   payment_order_id = state.data?.data?.gatewayOrderId;
                 });
-                log(
-                  'called fib or billing ${state.data?.data!.paymentGateway}',
-                );
-                if (state.data?.data!.paymentGateway == 'GpayInAppPurchase') {
-                  _gpaymentUtils.buyConsumableProduct(
-                    payment_order_id.toString(),
+                final fibLink =
+                    state.data?.data?.gatewayResponse?.personalAppLink ?? '';
+                log('fib link is $fibLink');
+                if (fibLink.isNotEmpty) {
+                  await launchUrl(
+                    Uri.parse(fibLink),
+                    mode: LaunchMode.externalApplication,
                   );
                 } else {
-                  // Get.back();
-                  log(
-                    'personal fib link is ${state.data?.data?.gatewayResponse?.personalAppLink}',
-                  );
-                  final url =
-                      state.data?.data?.gatewayResponse?.personalAppLink ?? '';
-                  if (url.isNotEmpty) {
-                    await launchUrl(
-                      Uri.parse(url),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  } else {
-                    log("Payment URL is empty");
-                  }
-
-                  // Get.to(
-                  //   () => FIBPaymentScreen(
-                  //     esimOrderId: esimOrderId.toString(),
-                  //     isTopUp: widget.isTopUp,
-                  //     iccid: widget.iccid.toString(),
-                  //     amount: state.data!.data!.amount.toString(),
-                  //     paymentResponse: state.data?.data!.gatewayResponse,
-                  //     paymentOrderid: payment_order_id.toString(),
-                  //   ),
-                  // );
+                  log("Payment URL is empty");
+                  //show toast
+                  global.showToastMessage(message: 'Payment URL not Found');
                 }
               }
             },
@@ -384,7 +352,8 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
                 onPressed: isloading
                     ? null
                     : () {
-                        _showPaymentMethodDialog(context);
+                        // _showPaymentMethodDialog(context);
+                        _onCreateOrderclicked(context, 'FIB');
                       },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
@@ -435,282 +404,6 @@ class _CheckoutscreenState extends State<Checkoutscreen> {
           ),
         ),
       ],
-    );
-  }
-
-  void _initializeGoogleBilling() {
-    log('🔹 _initializeGoogleBilling');
-    _gpaymentUtils = GPaymentUtils(
-      onMessage: (message) {
-        global.showToastMessage(message: message);
-
-        setState(() {
-          isloading = false;
-        });
-        final Map<String, dynamic> errorData = {
-          'status': 'error',
-          'error': {
-            'code': '400',
-            'message': 'Product Not Found on appstore/playstore',
-            'details': 'User cancelled the transaction',
-          },
-        };
-        final String jsonError = jsonEncode(errorData);
-        context.read<RazorpayErrorBloc>().add(
-          RazorpayEvent(esimOrderId: esimOrderId, code: jsonError),
-        );
-      },
-      onPurchaseVerified: (purchaseDetails) {
-        // Decode into Map
-        final Map<String, dynamic> decoded = jsonDecode(
-          purchaseDetails.verificationData.localVerificationData,
-        );
-        final _esim_order_id = verified_esim_order_id;
-        final _gateway_order_id = payment_order_id;
-        // Platform-specific additional info
-        if (Platform.isIOS) {
-          final transactionID = decoded["transactionId"];
-          final originalTransactionId = decoded["originalTransactionId"];
-
-          print('''
-          📦 Verify Purchase Info (${Platform.operatingSystem.toUpperCase()}):
-            • esim_order_id   : $_esim_order_id  
-            • transactionId   : $transactionID
-            • originalTransactionId : $originalTransactionId
-           
-       ''');
-          context.read<PaymentVerifybloc>().add(
-            PaymentVerifyEvent(
-              isTopup: widget.isTopUp,
-              iccid: widget.iccid,
-              esim_order_id: _esim_order_id,
-              transactionId: transactionID,
-              originalTransactionId: originalTransactionId,
-            ),
-          );
-        } else if (Platform.isAndroid) {
-          context.read<PaymentVerifybloc>().add(
-            PaymentVerifyEvent(
-              isTopup: widget.isTopUp,
-              iccid: widget.iccid,
-              esim_order_id: _esim_order_id,
-              packageName: decoded["packageName"],
-              gateway_order_id: _gateway_order_id,
-              purchaseToken: decoded["purchaseToken"],
-              googleorderid: decoded["orderId"],
-            ),
-          );
-        }
-      },
-      onPurchasedError: (purchaseDetails) {
-        final Map<String, dynamic> errorData = {
-          'status': purchaseDetails.status.toString(),
-          'error': {
-            'source': purchaseDetails.error?.source,
-            'code': purchaseDetails.error?.code,
-            'message': purchaseDetails.error?.message,
-            'details': purchaseDetails.error?.details,
-          },
-        };
-        final String jsonError = jsonEncode(errorData);
-        context.read<RazorpayErrorBloc>().add(
-          RazorpayEvent(esimOrderId: esimOrderId, code: jsonError),
-        );
-      },
-
-      onPurchasePending: () {
-        global.showToastMessage(message: 'Payment is pending...');
-        setState(() {
-          isloading = true;
-        });
-      },
-    );
-
-    _gpaymentUtils.initialize();
-  }
-
-  void _setupAlternativeBillingListener() async {
-    log('🔹 Setup Alternative Billing Listener');
-    if (Platform.isAndroid) {
-      final androidAddition = InAppPurchase.instance
-          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>();
-
-      androidAddition.userChoiceDetailsStream.listen((details) async {});
-    } else if (Platform.isIOS) {
-      final iosAddition = InAppPurchase.instance
-          .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>();
-      iosAddition.showPriceConsentIfNeeded();
-    }
-  }
-
-  // Payment Method Selection Dialog
-  void _showPaymentMethodDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            padding: const EdgeInsets.all(0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Colors.blue.shade600, Colors.purple.shade600],
-                    ),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.payment_rounded,
-                        color: Colors.white,
-                        size: 40,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Choose Payment Method",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18.sp,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Select your preferred payment option",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 14.sp,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Payment Options
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      // Google Billing Option
-                      _buildPaymentOption(
-                        icon: Icons.smartphone_rounded,
-                        title: "Google Play Billing",
-                        subtitle: "Pay with your Google Account",
-                        color: Colors.green,
-                        onTap: () {
-                          //. fib send payment
-                          _onCreateOrderclicked(context, 'GpayInAppPurchase');
-                        },
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      // Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey.shade300,
-                              thickness: 1,
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            child: Text(
-                              "OR",
-                              style: TextStyle(
-                                color: Colors.grey.shade500,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Divider(
-                              color: Colors.grey.shade300,
-                              thickness: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      // FIB Payment Option
-                      _buildPaymentOption(
-                        icon: Icons.account_balance_rounded,
-                        title: "FIB Payment",
-                        subtitle: "QR Code & Bank Transfer",
-                        color: Colors.blue,
-                        onTap: () {
-                          
-                          _onCreateOrderclicked(context, 'FIB');
-                          log('tick tick fib');
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Cancel Button
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
-                  child: OutlinedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    child: Text(
-                      "Cancel",
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 
